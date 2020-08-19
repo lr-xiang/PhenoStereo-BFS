@@ -1,0 +1,3 @@
+/home/nvidia/Desktop/stereo_jetson_module/CMakeFiles/rebuild_cache.dir
+/home/nvidia/Desktop/stereo_jetson_module/CMakeFiles/edit_cache.dir
+/home/nvidia/Desktop/stereo_jetson_module/CMakeFiles/sensor_client.dir
