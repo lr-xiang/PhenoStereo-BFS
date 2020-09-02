@@ -29,7 +29,7 @@ namespace fs = boost::filesystem;
 struct BFS_Params
 {
     string triggerMode = "On";      // Use trigger to take images, if off, continuous taking
-    string triggerSource = "Software"; // Line0
+    string triggerSource = "Line0"; // Line0 Software
 
     string pixelFormat = "BayerRG8";
     
@@ -37,7 +37,7 @@ struct BFS_Params
     string balanceWhiteAuto = "Off";
     string gainAuto = "Off";
 
-    float exposureTime = 10000.0;      // Unit us
+    float exposureTime = 1000.0;      // Unit us
     float gain = 5.0;
     
     // default settings:
@@ -104,6 +104,7 @@ private:
     int set_node_val(INodeMap* p_node_map, string node_name, string value);
     int set_node_val(INodeMap* p_node_map, string node_name, int value);
     int set_node_val(INodeMap* p_node_map, string node_name, float value);
+    int set_node_val(INodeMap* p_node_map, string node_name, bool value);
     template<typename T>
         int get_node_val(INodeMap* p_node_map, string node_name, T& value);
 
@@ -158,7 +159,7 @@ public:
     // Current exposure(shutter), if < 0, not read
     int exposure_us_ = -1;
     // "Soft", "GPIO" or "Client", "Soft" needs to software trigger at least one camera. "GPIO": trigger all cameras through GPIO. "Client": cameras are all triggered by other modules/computers 
-    string  moduleMode_ = "Soft";  
+    string  moduleMode_ = "GPIO";  
 
     bool    cont_triggering_ = false;   
 private:

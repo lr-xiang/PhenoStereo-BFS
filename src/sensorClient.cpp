@@ -1,7 +1,7 @@
 #include "flirBFS.h"
 #include <boost/shared_ptr.hpp>
 #include <boost/filesystem.hpp>
-#include <json/json.h>
+//#include <json.h>
 
 #include <map>
 
@@ -172,12 +172,15 @@ int main(int argc, char **argv)
     	if(r_tg!=0)
             std::cout<<"Trigger Failed"<< std::endl;
             
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); //1000
+        std::this_thread::sleep_for(std::chrono::milliseconds(20)); //1000
         
         if(count>100)
         	break;
     }        
-    
+    //hardware
+    //single camera: 12.1 FPS
+    //TWO CAMERAS: 10.1 FPS
+    //software 10FPS
     float dura = ((double)cv::getTickCount() - initial_count)/cv::getTickFrequency();
     std::cout<<"stop count "<<dura<<endl;
 	cout<<"FPS: "<<count/dura<<endl;
@@ -185,7 +188,7 @@ int main(int argc, char **argv)
     //stop trigger
     
     res = pCameras->BFSM_stop_trigger();
-    
+        
     //disconnect
     res = pCameras->BFSM_disconnect();
 

@@ -54,6 +54,7 @@ int BFS_camera::cam_connect()
 
         // Retrieve GenICam nodemap
         pNodeMap = &(pCam->GetNodeMap());
+
     }
     catch (Spinnaker::Exception &e)
     {
@@ -138,13 +139,7 @@ int BFS_camera::cam_init()
     std::clog<<"["<<cameraID<<"] Set parameters "<<std::endl;
     try
     {
-
-        if(set_node_val(pNodeMap, "TriggerMode", camParas.triggerMode)!=0)
-        {
-            std::cout<<"Set TriggerMode failed"<<std::endl;
-            return -1;
-        }
-
+    
         if(set_node_val(pNodeMap, "ExposureAuto", camParas.exposureAuto)!=0)
         {
             std::cout<<"Set ExposureAuto failed"<<std::endl;
@@ -181,20 +176,27 @@ int BFS_camera::cam_init()
         }
 
         std::cout<<"["<<cameraID<<"] " << "Trigger source: "<<camParas.triggerSource<<std::endl;
-
+        
+        /*
         if(camParas.triggerSource!="Software"){
             if(set_node_val(pNodeMap, "TriggerOverlap", "ReadOut")!=0)
             {
                 std::cout<<"Set TriggerOverlap failed"<<std::endl;
                 return -1;
             }
-        }
+        }*/
         if(set_node_val(pNodeMap, "PixelFormat", camParas.pixelFormat)!=0)
         {
             std::cout<<"Set PixelFormat failed"<<std::endl;
             return -1;
         }
 
+        if(set_node_val(pNodeMap, "TriggerMode", camParas.triggerMode)!=0)
+        {
+            std::cout<<"Set TriggerMode failed"<<std::endl;
+            return -1;
+        }
+        
         start_streaming();
 
         start_saving();
@@ -206,11 +208,21 @@ int BFS_camera::cam_init()
         result = -1;
     }
 
+    		cout<<"get node values\n";
+			cout<<"frame rate: "<<pCam->AcquisitionFrameRate.GetValue()<<endl;
+			cout<<"exposure auto: "<<pCam->ExposureAuto.GetValue()<<endl;
+			cout<<"gain auto: "<<pCam->GainAuto.GetValue()<<endl;
+			cout<<"acquisition mode: "<<pCam->AcquisitionMode.GetValue()<<endl;
+			cout<<"triggerMode: "<<pCam->TriggerMode.GetValue()<<endl;
+			cout<<"triggerSource: "<<pCam->TriggerSource.GetValue()<<endl;
+        
     return result;
 }
 
 bool BFS_camera::cam_trigger_ready()
 {
+	//cout<<"isTriggered: "<<isTriggered<<endl;
+	//cout<<"_streaming: "<<_streaming<<endl;
     return (!isTriggered) && _streaming && img_buffer_.size()<100;
 }
 
@@ -316,7 +328,7 @@ void BFS_camera::streaming()
         {
             // Retrieve next received image and ensure image completion
             imgId ++; 
-            pImage = pCam->GetNextImage();
+            pImage = pCam->GetNextImage(1000);
             
             // Check the triggerMode and is module active
             // If passive mode, or trigger Off, save all image with received time as timestamp
@@ -348,38 +360,12 @@ void BFS_camera::streaming()
                 // Copy data to shared buffer
                 _updateMutex.lock();
                 cvImage = cv::Mat(colsize + YPadding, rowsize + XPadding, CV_8UC1, convertedImage->GetData(), convertedImage->GetStride()).clone();
-                _updateMutex.unlock();
-
-                // Save the image, with filename&timestamp
-                if(1){
-                    // Put the image into a saving buffer, leave the rest of the saving work to a saving thread
-                    _updateMutex.lock();
 
                     img_buffer_.push_back(std::pair<int, cv::Mat>(
                             _syncSave.calc_stime_ms_diff(triggered_time),
                             cvImage.clone()));
                     _updateMutex.unlock();
-                    // Migrated these to the saving thread    
-                    /* 
-                    // Create a unique filename
-                    std::stringstream ss_fn; // A string stream to generate filename, with format
-                    ss_fn<<std::setw(5)<<std::setfill('0')<<_syncSave.save_id<<"_"<<cameraID<<".jpeg";
-                    fs::path img_path = fs::path(_syncSave.save_path) / fs::path(ss_fn.str());
 
-                    // Save image
-                    //convertedImage->Save(img_path.c_str());
-
-                    // Print image information
-                    if(DEBUG_INFO)
-                    cout << "[" << cameraID << "] "<< ". Image saved at " << img_path.c_str()<< endl;
-                    _syncSave.save_id++;
-
-                    // Log file with timestamp. 
-                    if(_syncSave.csv_writter.is_open())
-                        _syncSave.csv_writter<<
-                            _syncSave.calc_stime_ms_diff(triggered_time)
-                            <<","<<img_path.c_str()<<std::endl;*/
-                }
             }
         
             // Release image
@@ -428,7 +414,8 @@ void BFS_camera::saving()
             // Create a unique filename
             std::stringstream ss_fn; // A string stream to generate filename, with format
 
-            ss_fn<<std::setw(5)<<std::setfill('0')<<_syncSave.save_id<<"_"<<cameraID<<".jpeg";
+            //ss_fn<<std::setw(5)<<std::setfill('0')<<_syncSave.save_id<<"_"<<cameraID<<".jpeg";
+            ss_fn<<std::setw(5)<<std::setfill('0')<<_syncSave.save_id<<"_"<<cameraID<<".pgm";
             fs::path img_path = fs::path(_syncSave.save_path) / fs::path(ss_fn.str());
 
             // Print image information
@@ -440,13 +427,17 @@ void BFS_camera::saving()
             _updateMutex.lock();
 
             std::pair<int, cv::Mat> ts_img = img_buffer_.front();
-            cv::Mat rgb_converted;
+           // cv::Mat rgb_converted;
+
+/*
 #if CV_VERSION_MAJOR == 3
             cv::cvtColor(ts_img.second, rgb_converted, cv::COLOR_BayerRG2RGB);
 #else
             cv::cvtColor(ts_img.second, rgb_converted, CV_BayerRG2RGB);
 #endif
             cv::imwrite(img_path.c_str(), rgb_converted, compression_params);
+*/
+			cv::imwrite(img_path.c_str(), ts_img.second);
 
             img_buffer_.pop_front();
             _updateMutex.unlock();
@@ -534,6 +525,27 @@ int BFS_camera::set_node_val(INodeMap* p_node_map, string node_name, float value
     }
     return result;
 }
+
+int BFS_camera::set_node_val(INodeMap* p_node_map, string node_name, bool value)
+{
+    int result = 0;
+    try{
+        CValuePtr p_val = p_node_map->GetNode(node_name.c_str());
+        if (!IsAvailable(p_val) || !IsWritable(p_val))
+        {
+            cout << "Unable set float Node "<<node_name<<". Aborting..." << endl << endl;
+            return -1;
+        }
+        ((CBooleanPtr)p_val)->SetValue(value); 
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        cout << "Error: " << e.what() << endl;
+        result = -1;
+    }
+    return result;
+}
+
 template<typename T>
 int BFS_camera::get_node_val(INodeMap* p_node_map, string node_name, T& value)
 {
@@ -692,8 +704,9 @@ int BFSMulti::BFSM_trigger(Stime& ts){
         if(trigger_ready)
             break;
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         try_time_out ++;
+       // cout<<"try_time_out: "<<try_time_out<<endl;
     }
     
     // Time out for triggering
@@ -708,7 +721,7 @@ int BFSMulti::BFSM_trigger(Stime& ts){
         // GPIO trigger
         if(moduleMode_ == "GPIO"){
             gpioSetValue(GPIO_PORT, on);
-            std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
             gpioSetValue(GPIO_PORT, off);
         }
             
@@ -844,6 +857,7 @@ int PrintCameraInfo(INodeMap & nodeMap)
         {
             cout << "Device control information not available." << endl;
         }
+
     }
     catch (Spinnaker::Exception &e)
     {
