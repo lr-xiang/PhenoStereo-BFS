@@ -721,7 +721,7 @@ int BFSMulti::BFSM_trigger(Stime& ts){
         // GPIO trigger
         if(moduleMode_ == "GPIO"){
             gpioSetValue(GPIO_PORT, on);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(3));
             gpioSetValue(GPIO_PORT, off);
         }
             
